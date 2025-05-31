@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Binance Spot + Futures Risk Calculator</title>
+<style>
+  body {
+    background-color: #222;
+    color: #ccc;
+    font-family: Arial, sans-serif;
+    max-width: 600px;
+    margin: auto;
+    padding: 1rem;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+  }
+  td {
+    padding: 0.5rem;
+    border: 1px solid #444;
+  }
+  input, select {
+    width: 100%;
+    padding: 0.3rem;
+    background: #333;
+    border: 1px solid #555;
+    color: #eee;
+  }
+  input[type="radio"] {
+    width: auto;
+  }
+  button {
+    margin: 0.3rem 0.5rem 0.3rem 0;
+    padding: 0.3rem 1rem;
+    font-weight: bold;
+    border: none;
+    cursor: pointer;
+  }
+  button.buy {
+    background-color: #234523;
+    color: #3f9f3f;
+  }
+  button.sell {
+    background-color: #4a1f1f;
+    color: #d44;
+  }
+  #result {
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: #ddd;
+  }
+</style>
+</head>
+<body>
+
+<h2>Binance Spot + Futures Risk Calculator</h2>
+<p>Gabungan pair Spot dan Futures USDT. Entry & Stoploss input manual.</p>
+
+<table>
+<tr><td>Account size (USDT)</td><td><input type="number" id="accountSize" min="1" step="any" value="1000"></td></tr>
+<tr><td>Pair</td><td><select id="pairSelect"><option>Loading pairs...</option></select></td></tr>
+<tr>
+  <td>Contracts / Risk %</td>
+  <td>
+    <label><input type="radio" name="mode" value="contracts"> Contracts </label>
+    <label><input type="radio" name="mode" value="risk" checked> Risk % </label>
+    <input type="number" id="inputValue" min="0" step="any" value="1" style="width:60px; margin-left:10px;">
+  </td>
+</tr>
+<tr><td>Leverage</td><td><input type="number" id="leverage" min="1" max="125" step="1" value="10"></td></tr>
+<tr><td>Entry price</td><td><input type="number" id="entryPrice" min="0" step="any"></td></tr>
+<tr><td>Stoploss price</td><td><input type="number" id="stopLossPrice" min="0" step="any"></td></tr>
+<tr>
+  <td>Side</td>
+  <td>
+    <button id="sellBtn" class="sell">Sell</button>
+    <button id="buyBtn" class="buy">Buy</button>
+  </td>
+</tr>
+<tr>
+  <td>Contract size (per contract)</td><td><input type="text" id="contractSize" readonly style="background:#444; color:#eee;"></td>
+</tr>
+</table>
+
+<div id="result"></div>
+
+<script>
+let allSymbols = [];
+let selectedSide = null;
+let contractSize = 1;
+
+async function fetchBinanceFutures() {
+  try {
+    const res = await fetch('https://fapi.binance.com/fapi/v1/exchangeInfo');
+    const data = await res.json();
+    return data.symbols
+      .filter(s => s.contractType === 'PERPETUAL' && s.quoteAsset === 'USDT')
+      .map(s => ({ symbol: s.symbol, contractSize: parseFloat(s.contractSize || '1'), source: 'futures' }));
+  } catch {
+    return [];
+  }
+}
+
+async function fetchBinanceSpot() {
+  try {
+    const res = await fetch('https://api.binance.com/api/v3/exchangeInfo');
+    const data = await res.json();
+    return data.symbols
+      .filter(s => s.quoteAsset === 'USDT')
+      .map(s => ({ symbol: s.symbol, contractSize: 1, source: 'spot' })); // spot contract size default 1
+  } catch {
+    return [];
+  }
+}
+
+async function fetchPairs() {
+  const select = document.getElementById('pairSelect');
+  select.innerHTML = '<option>Loading pairs...</option>';
+
+  const futures = await fetchBinanceFutures();
+  const spot = await fetchBinanceSpot();
+
+  // Merge and remove duplicates (prefer futures contract size if exists)
+  const mapPairs = new Map();
+
+  futures.forEach(f => mapPairs.set(f.symbol, f));
+  spot.forEach(s => {
+    if (!mapPairs.has(s.symbol)) {
+      mapPairs.set(s.symbol, s);
+    }
+  });
+
+  // Convert map to sorted array
+  allSymbols = Array.from(mapPairs.values())
+    .sort((a,b) => a.symbol.localeCompare(b.symbol));
+
+  // Fill select dropdown
+  select.innerHTML = allSymbols.map(s =>
+    `<option value="${s.symbol}" data-contractsize="${s.contractSize}" data-source="${s.source}">${s.symbol} (${s.source})</option>`
+  ).join('');
+
+  updateContractSize();
+}
+
+function updateContractSize() {
+  const select = document.getElementById('pairSelect');
+  const option = select.selectedOptions[0];
+  if (!option) return;
+  contractSize = parseFloat(option.getAttribute('data-contractsize') || '1');
+  document.getElementById('contractSize').value = contractSize;
+}
+
+function calculate() {
+  const accountSize = parseFloat(document.getElementById('accountSize').value);
+  const mode = document.querySelector('input[name="mode"]:checked').value;
+  const inputVal = parseFloat(document.getElementById('inputValue').value);
+  const leverage = parseInt(document.getElementById('leverage').value);
+  const entryPrice = parseFloat(document.getElementById('entryPrice').value);
+  const stopLossPrice = parseFloat(document.getElementById('stopLossPrice').value);
+  const resultDiv = document.getElementById('result');
+
+  if (isNaN(accountSize) || accountSize <= 0) {
+    resultDiv.textContent = 'Please enter a valid Account size';
+    return;
+  }
+  if (isNaN(entryPrice) || entryPrice <= 0) {
+    resultDiv.textContent = 'Please enter a valid Entry price';
+    return;
+  }
+  if (isNaN(stopLossPrice) || stopLossPrice <= 0) {
+    resultDiv.textContent = 'Please enter a valid Stoploss price';
+    return;
+  }
+  if (entryPrice === stopLossPrice) {
+    resultDiv.textContent = 'Entry price and Stoploss price cannot be equal';
+    return;
+  }
+  if (isNaN(leverage) || leverage < 1) {
+    resultDiv.textContent = 'Please enter valid leverage (>= 1)';
+    return;
+  }
+  if (isNaN(inputVal) || inputVal <= 0) {
+    resultDiv.textContent = 'Please enter a positive Contracts or Risk %';
+    return;
+  }
+  if (!selectedSide) {
+    resultDiv.textContent = 'Please select Buy or Sell side';
+    return;
+  }
+
+  const priceDiff = Math.abs(entryPrice - stopLossPrice);
+
+  if (mode === 'risk') {
+    const riskPercent = inputVal / 100;
+    const riskAmountUSDT = accountSize * riskPercent;
+
+    let maxContracts = riskAmountUSDT / (priceDiff * contractSize);
+    maxContracts = Math.floor(maxContracts);
+
+    if (maxContracts <= 0) {
+      resultDiv.textContent = 'Risk % too low or stoploss too close to entry, position size is zero.';
+      return;
+    }
+
+    const positionSizeUSDT = maxContracts * contractSize * entryPrice;
+    const marginRequired = positionSizeUSDT / leverage;
+
+    resultDiv.innerHTML = `
+      <div style="margin-bottom: 10px; font-weight: bold;">
+        Pair: ${document.getElementById('pairSelect').value} &nbsp;&nbsp;&nbsp;
+        Entry: ${entryPrice} &nbsp;&nbsp;&nbsp;
+        Stoploss: ${stopLossPrice} &nbsp;&nbsp;&nbsp;
+        Leverage: ${leverage}
+      </div>
+
+      <div style="color: #3f9f3f; font-weight: bold; margin-bottom: 5px;">
+        Risk is ${inputVal.toFixed(3)}% of account (${riskAmountUSDT.toFixed(3)} USDT)
+      </div>
+      <div style="color: #3f9f3f; font-weight: bold; margin-bottom: 15px;">
+        Total margin required for trade is ${marginRequired.toFixed(3)}
+      </div>
+
+      <div>
+        <strong>Total Account Balance:</strong> ${accountSize.toFixed(2)} USDT<br>
+        <strong>Max Order Size:</strong> ${maxContracts} contracts (~${positionSizeUSDT.toFixed(3)} USDT full position size)<br>
+        <em>(Contract size used: ${contractSize}, source: ${document.getElementById('pairSelect').selectedOptions[0].getAttribute('data-source')})</em>
+      </div>
+    `;
+  } else {
+    const contracts = Math.floor(inputVal);
+    if (contracts <= 0) {
+      resultDiv.textContent = 'Contracts must be greater than zero.';
+      return;
+    }
+    const riskAmountUSDT = contracts * priceDiff * contractSize;
+    const riskPercent = (riskAmountUSDT / accountSize) * 100;
+    const positionSizeUSDT = contracts * contractSize * entryPrice;
+    const marginRequired = positionSizeUSDT / leverage;
+
+    resultDiv.innerHTML = `
+      <div style="margin-bottom: 10px; font-weight: bold;">
+        Pair: ${document.getElementById('pairSelect').value} &nbsp;&nbsp;&nbsp;
+        Entry: ${entryPrice} &nbsp;&nbsp;&nbsp;
+        Stoploss: ${stopLossPrice} &nbsp;&nbsp;&nbsp;
+        Leverage: ${leverage}
+      </div>
+
+      <div style="color: #3f9f3f; font-weight: bold; margin-bottom: 5px;">
+        Risk is ${riskPercent.toFixed(3)}% of account (${riskAmountUSDT.toFixed(3)} USDT)
+      </div>
+      <div style="color: #3f9f3f; font-weight: bold; margin-bottom: 15px;">
+        Total margin required for trade is ${marginRequired.toFixed(3)}
+      </div>
+
+      <div>
+        <strong>Total Account Balance:</strong> ${accountSize.toFixed(2)} USDT<br>
+        <strong>Order Size:</strong> ${contracts} contracts (~${positionSizeUSDT.toFixed(3)} USDT full position size)<br>
+        <em>(Contract size used: ${contractSize}, source: ${document.getElementById('pairSelect').selectedOptions[0].getAttribute('data-source')})</em>
+      </div>
+    `;
+  }
+}
+
+document.getElementById('pairSelect').addEventListener('change', () => {
+  updateContractSize();
+  if (selectedSide) calculate();
+});
+document.getElementById('buyBtn').addEventListener('click', () => {
+  selectedSide = 'Buy';
+  calculate();
+});
+document.getElementById('sellBtn').addEventListener('click', () => {
+  selectedSide = 'Sell';
+  calculate();
+});
+
+['accountSize', 'inputValue', 'leverage', 'entryPrice', 'stopLossPrice'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    if (selectedSide) calculate();
+  });
+});
+document.querySelectorAll('input[name="mode"]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    if (selectedSide) calculate();
+  });
+});
+
+fetchPairs();
+</script>
+
+</body>
+</html>
