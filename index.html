@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Binance Spot + Futures Risk Calculator</title>
+<title>Safe Trade Risk Checker</title>
+<meta name="description" content="Protect your trades by calculating contract size or risk percentage based on your trade setup for USDT pairs on Spot and Futures markets." />
 <style>
   body {
     background-color: #222;
@@ -53,16 +54,56 @@
     font-weight: bold;
     color: #ddd;
   }
+  .dropdown {
+    position: relative;
+  }
+  input.search-input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #555;
+    background: #333;
+    color: #eee;
+    border-radius: 4px;
+  }
+  ul.options-list {
+    position: absolute;
+    width: 100%;
+    max-height: 180px;
+    overflow-y: auto;
+    background: #333;
+    border: 1px solid #555;
+    margin-top: 2px;
+    padding: 0;
+    list-style: none;
+    border-radius: 4px;
+    z-index: 10000;
+    display: none;
+  }
+  ul.options-list li {
+    padding: 0.5rem;
+    cursor: pointer;
+  }
+  ul.options-list li:hover,
+  ul.options-list li.highlighted {
+    background: #555;
+  }
 </style>
 </head>
 <body>
 
-<h2>Binance Spot + Futures Risk Calculator</h2>
-<p>Gabungan pair Spot dan Futures USDT. Entry & Stoploss input manual.</p>
+<h2>Safe Trade Risk Checker</h2>
+<p>Protect your trades by calculating contract size or risk percentage based on your trade setup for USDT pairs on Spot and Futures markets.</p>
 
 <table>
 <tr><td>Account size (USDT)</td><td><input type="number" id="accountSize" min="1" step="any" value="1000"></td></tr>
-<tr><td>Pair</td><td><select id="pairSelect"><option>Loading pairs...</option></select></td></tr>
+<tr><td>Pair</td>
+  <td>
+    <div class="dropdown">
+      <input type="text" placeholder="Type to search pair..." class="search-input" id="pairInput" autocomplete="off" aria-autocomplete="list" aria-haspopup="listbox" aria-expanded="false" />
+      <ul class="options-list" id="pairOptions" role="listbox" tabindex="-1"></ul>
+    </div>
+  </td>
+</tr>
 <tr>
   <td>Contracts / Risk %</td>
   <td>
@@ -89,18 +130,26 @@
 <div id="result"></div>
 
 <script>
-let allSymbols = [];
+let allPairs = [];
 let selectedSide = null;
 let contractSize = 1;
+let selectedPair = null;
+let highlightedIndex = -1;
+
+// Load pairs silently, no fallback display on start
+allPairs = [];
+loadPairs();
 
 async function fetchBinanceFutures() {
   try {
     const res = await fetch('https://fapi.binance.com/fapi/v1/exchangeInfo');
     const data = await res.json();
+    console.log('Fetched Binance Futures:', data.symbols.length);
     return data.symbols
       .filter(s => s.contractType === 'PERPETUAL' && s.quoteAsset === 'USDT')
       .map(s => ({ symbol: s.symbol, contractSize: parseFloat(s.contractSize || '1'), source: 'futures' }));
-  } catch {
+  } catch (err) {
+    console.error('Error fetching Binance Futures:', err);
     return [];
   }
 }
@@ -109,49 +158,164 @@ async function fetchBinanceSpot() {
   try {
     const res = await fetch('https://api.binance.com/api/v3/exchangeInfo');
     const data = await res.json();
+    console.log('Fetched Binance Spot:', data.symbols.length);
     return data.symbols
       .filter(s => s.quoteAsset === 'USDT')
-      .map(s => ({ symbol: s.symbol, contractSize: 1, source: 'spot' })); // spot contract size default 1
-  } catch {
+      .map(s => ({ symbol: s.symbol, contractSize: 1, source: 'spot' }));
+  } catch (err) {
+    console.error('Error fetching Binance Spot:', err);
     return [];
   }
 }
 
-async function fetchPairs() {
-  const select = document.getElementById('pairSelect');
-  select.innerHTML = '<option>Loading pairs...</option>';
+async function loadPairs() {
+  try {
+    const futures = await fetchBinanceFutures();
+    const spot = await fetchBinanceSpot();
 
-  const futures = await fetchBinanceFutures();
-  const spot = await fetchBinanceSpot();
+    const mapPairs = new Map();
+    futures.forEach(f => mapPairs.set(f.symbol, f));
+    spot.forEach(s => {
+      if (!mapPairs.has(s.symbol)) {
+        mapPairs.set(s.symbol, s);
+      }
+    });
 
-  // Merge and remove duplicates (prefer futures contract size if exists)
-  const mapPairs = new Map();
+    allPairs = Array.from(mapPairs.values())
+      .sort((a,b) => a.symbol.localeCompare(b.symbol));
 
-  futures.forEach(f => mapPairs.set(f.symbol, f));
-  spot.forEach(s => {
-    if (!mapPairs.has(s.symbol)) {
-      mapPairs.set(s.symbol, s);
-    }
-  });
-
-  // Convert map to sorted array
-  allSymbols = Array.from(mapPairs.values())
-    .sort((a,b) => a.symbol.localeCompare(b.symbol));
-
-  // Fill select dropdown
-  select.innerHTML = allSymbols.map(s =>
-    `<option value="${s.symbol}" data-contractsize="${s.contractSize}" data-source="${s.source}">${s.symbol} (${s.source})</option>`
-  ).join('');
-
-  updateContractSize();
+    console.log('Combined pairs count:', allPairs.length);
+    console.log('Sample pairs:', allPairs.slice(0, 10));
+  } catch(e) {
+    console.warn('Failed to load pairs, allPairs is empty:', e);
+    allPairs = [];
+  }
 }
 
-function updateContractSize() {
-  const select = document.getElementById('pairSelect');
-  const option = select.selectedOptions[0];
-  if (!option) return;
-  contractSize = parseFloat(option.getAttribute('data-contractsize') || '1');
+function filterPairs(value) {
+  const lower = value.toLowerCase();
+  return allPairs.filter(p => p.symbol.toLowerCase().includes(lower));
+}
+
+function showPairOptions(list) {
+  const options = document.getElementById('pairOptions');
+  options.innerHTML = '';
+  if (list.length === 0) {
+    options.style.display = 'none';
+    highlightedIndex = -1;
+    updateAria(false);
+    return;
+  }
+  list.forEach((pair, idx) => {
+    const li = document.createElement('li');
+    li.textContent = `${pair.symbol} (${pair.source})`;
+    li.setAttribute('data-symbol', pair.symbol);
+    li.setAttribute('data-contractsize', pair.contractSize);
+    li.setAttribute('data-source', pair.source);
+    li.setAttribute('role', 'option');
+    li.id = `option-${idx}`;
+    li.addEventListener('click', () => {
+      selectPair(pair);
+    });
+    options.appendChild(li);
+  });
+  options.style.display = 'block';
+  highlightedIndex = -1;
+  updateAria(true);
+}
+
+function selectPair(pair) {
+  selectedPair = pair.symbol;
+  contractSize = pair.contractSize;
+  document.getElementById('pairInput').value = pair.symbol;
   document.getElementById('contractSize').value = contractSize;
+  document.getElementById('pairOptions').style.display = 'none';
+  highlightedIndex = -1;
+  updateAria(false);
+  if (selectedSide) calculate();
+}
+
+function updateAria(expanded) {
+  const input = document.getElementById('pairInput');
+  input.setAttribute('aria-expanded', expanded.toString());
+}
+
+const searchInput = document.getElementById('pairInput');
+const optionsList = document.getElementById('pairOptions');
+
+searchInput.addEventListener('input', (e) => {
+  const val = e.target.value.trim();
+  if (!val) {
+    optionsList.style.display = 'none';
+    selectedPair = null;
+    contractSize = 1;
+    document.getElementById('contractSize').value = '';
+    return;
+  }
+  const filtered = filterPairs(val);
+  showPairOptions(filtered);
+  selectedPair = null;
+  contractSize = 1;
+  document.getElementById('contractSize').value = '';
+});
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.dropdown')) {
+    optionsList.style.display = 'none';
+    highlightedIndex = -1;
+    updateAria(false);
+  }
+});
+
+searchInput.addEventListener('keydown', e => {
+  const items = optionsList.querySelectorAll('li');
+  if (optionsList.style.display === 'none' || items.length === 0) return;
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    let nextIndex = highlightedIndex + 1;
+    if (nextIndex >= items.length) nextIndex = 0;
+    highlightOption(nextIndex);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    let prevIndex = highlightedIndex - 1;
+    if (prevIndex < 0) prevIndex = items.length - 1;
+    highlightOption(prevIndex);
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (highlightedIndex >= 0 && items[highlightedIndex]) {
+      items[highlightedIndex].click();
+    }
+  } else if (e.key === 'Escape') {
+    optionsList.style.display = 'none';
+    highlightedIndex = -1;
+    updateAria(false);
+  }
+});
+
+function highlightOption(index) {
+  const items = optionsList.querySelectorAll('li');
+  items.forEach((item, i) => {
+    if (i === index) {
+      item.classList.add('highlighted');
+      item.setAttribute('aria-selected', 'true');
+      searchInput.setAttribute('aria-activedescendant', item.id);
+      const container = optionsList;
+      const itemTop = item.offsetTop;
+      const itemBottom = itemTop + item.offsetHeight;
+      const containerTop = container.scrollTop;
+      const containerBottom = containerTop + container.offsetHeight;
+      if (itemTop < containerTop) {
+        container.scrollTop = itemTop;
+      } else if (itemBottom > containerBottom) {
+        container.scrollTop = itemBottom - container.offsetHeight;
+      }
+    } else {
+      item.classList.remove('highlighted');
+      item.setAttribute('aria-selected', 'false');
+    }
+  });
+  highlightedIndex = index;
 }
 
 function calculate() {
@@ -163,6 +327,10 @@ function calculate() {
   const stopLossPrice = parseFloat(document.getElementById('stopLossPrice').value);
   const resultDiv = document.getElementById('result');
 
+  if (!selectedPair) {
+    resultDiv.textContent = 'Please select a valid pair from the list.';
+    return;
+  }
   if (isNaN(accountSize) || accountSize <= 0) {
     resultDiv.textContent = 'Please enter a valid Account size';
     return;
@@ -211,7 +379,7 @@ function calculate() {
 
     resultDiv.innerHTML = `
       <div style="margin-bottom: 10px; font-weight: bold;">
-        Pair: ${document.getElementById('pairSelect').value} &nbsp;&nbsp;&nbsp;
+        Pair: ${selectedPair} &nbsp;&nbsp;&nbsp;
         Entry: ${entryPrice} &nbsp;&nbsp;&nbsp;
         Stoploss: ${stopLossPrice} &nbsp;&nbsp;&nbsp;
         Leverage: ${leverage}
@@ -227,7 +395,7 @@ function calculate() {
       <div>
         <strong>Total Account Balance:</strong> ${accountSize.toFixed(2)} USDT<br>
         <strong>Max Order Size:</strong> ${maxContracts} contracts (~${positionSizeUSDT.toFixed(3)} USDT full position size)<br>
-        <em>(Contract size used: ${contractSize}, source: ${document.getElementById('pairSelect').selectedOptions[0].getAttribute('data-source')})</em>
+        <em>(Contract size used: ${contractSize})</em>
       </div>
     `;
   } else {
@@ -243,7 +411,7 @@ function calculate() {
 
     resultDiv.innerHTML = `
       <div style="margin-bottom: 10px; font-weight: bold;">
-        Pair: ${document.getElementById('pairSelect').value} &nbsp;&nbsp;&nbsp;
+        Pair: ${selectedPair} &nbsp;&nbsp;&nbsp;
         Entry: ${entryPrice} &nbsp;&nbsp;&nbsp;
         Stoploss: ${stopLossPrice} &nbsp;&nbsp;&nbsp;
         Leverage: ${leverage}
@@ -259,37 +427,47 @@ function calculate() {
       <div>
         <strong>Total Account Balance:</strong> ${accountSize.toFixed(2)} USDT<br>
         <strong>Order Size:</strong> ${contracts} contracts (~${positionSizeUSDT.toFixed(3)} USDT full position size)<br>
-        <em>(Contract size used: ${contractSize}, source: ${document.getElementById('pairSelect').selectedOptions[0].getAttribute('data-source')})</em>
+        <em>(Contract size used: ${contractSize})</em>
       </div>
     `;
   }
 }
 
-document.getElementById('pairSelect').addEventListener('change', () => {
-  updateContractSize();
-  if (selectedSide) calculate();
-});
+function resetInputs() {
+  document.getElementById('pairInput').value = '';
+  document.getElementById('contractSize').value = '';
+  document.querySelector('input[name="mode"][value="risk"]').checked = true;
+  document.getElementById('inputValue').value = '1';
+  document.getElementById('entryPrice').value = '';
+  document.getElementById('stopLossPrice').value = '';
+  selectedSide = null;
+  selectedPair = null;
+  contractSize = 1;
+  highlightedIndex = -1;
+  document.getElementById('pairOptions').style.display = 'none';
+
+  document.getElementById('accountSize').focus();
+}
+
 document.getElementById('buyBtn').addEventListener('click', () => {
   selectedSide = 'Buy';
   calculate();
+  resetInputs();
 });
 document.getElementById('sellBtn').addEventListener('click', () => {
   selectedSide = 'Sell';
   calculate();
+  resetInputs();
 });
 
-['accountSize', 'inputValue', 'leverage', 'entryPrice', 'stopLossPrice'].forEach(id => {
-  document.getElementById(id).addEventListener('input', () => {
-    if (selectedSide) calculate();
-  });
-});
-document.querySelectorAll('input[name="mode"]').forEach(radio => {
-  radio.addEventListener('change', () => {
-    if (selectedSide) calculate();
+['accountSize', 'inputValue', 'leverage', 'entryPrice', 'stopLossPrice', 'pairInput'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', (e) => {
+    if(e.key === 'Enter'){
+      calculate();
+    }
   });
 });
 
-fetchPairs();
 </script>
 
 </body>
