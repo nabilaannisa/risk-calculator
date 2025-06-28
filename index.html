@@ -93,6 +93,7 @@
     /* ─── Dropdown (Searchable) ────────────────────────────────────────── */
     .dropdown {
       position: relative;
+      z-index: 20; /* Ensure the dropdown is above other elements */
     }
     input.search-input {
       width: 100%;
@@ -125,6 +126,18 @@
     ul.options-list li:hover,
     ul.options-list li.highlighted {
       background: #444;
+    }
+
+    /* ─── Mobile override: Make dropdown visible and ensure it's within the viewport */
+    @media (max-width: 600px) {
+      .options-list {
+        position: absolute;
+        width: 100%;
+        max-height: 250px;
+        display: block !important; /* Show the dropdown */
+        background: #333;
+        z-index: 30;
+      }
     }
 
     /* ─── Result Box ───────────────────────────────────────────────────── */
@@ -163,7 +176,7 @@
       background: #666;
     }
 
-    /* Mobile override: button below result text, no extra top padding */
+    /* ─── Mobile override: button below result text, no extra top padding */
     @media (max-width: 600px) {
       #result {
         padding: 1rem;
@@ -301,11 +314,6 @@
     <div id="historyList"></div>
     <button id="clearHistoryBtn">Clear History</button>
   </div>
-
-  <!-- ─── 4) Footer Credit ───────────────────────────────────────────────── -->
-  <footer>
-    Sherlocked © 2025 Safe Trade Risk Checker &bull; Powered by Binance, Bitget & Bybit APIs 
-  </footer>
 
   <script>
     /* ──────────────────────────────────────────────────────────────────────────
