@@ -252,7 +252,11 @@
         // Langkah 2: Lakukan validasi dasar untuk memastikan semua input terisi
         if (!selectedPair) { showResult('Please select a valid pair from the list.', false); return; }
         if (isNaN(acctSize) || acctSize <= 0) { showResult('Please enter a valid Account size', false); return; }
-        // ... (validasi lainnya)
+        if (isNaN(entry) || entry <= 0) { showResult('Please enter a valid Entry price', false); return; }
+        if (isNaN(leverage) || leverage < 1) { showResult('Please enter valid leverage (>= 1)', false); return; }
+        if (isNaN(inputVal) || inputVal <= 0) { showResult('Please enter a positive Contracts or Risk %', false); return; }
+        if (!selectedSide) { showResult('Please select Buy or Sell side', false); return; }
+	
 
         // Langkah 3: Tentukan harga stop-loss (stop) berdasarkan mode yang dipilih (Harga atau Persen)
         if (slMode === SL_MODE_PERCENT) {
@@ -274,6 +278,7 @@
         const slPercentage = (priceDiff / entry) * 100;
         const color = (selectedSide === SIDE_BUY) ? '#9fefa1' : '#f17f7f';
         let html = '';
+
         const resultHeader = `<div style="margin-bottom: 0.8rem; font-weight: bold; color: ${color};"> ${selectedSide} ${selectedPair} | Entry: ${formatNum(entry)} | Stop: ${formatNum(stop)} (${slPercentage.toFixed(2)}%) | Leverage: ${formatNum(leverage)}× </div>`;
 
         if (mode === MODE_RISK) {
@@ -282,7 +287,8 @@
             if (maxContracts <= 0) { showResult('Risk % too low or stoploss too close, position size is zero.', false); return; }
             const posSize = maxContracts * contractSize * entry;
             const marginReq = posSize / leverage;
-            html += `${resultHeader} ...`; // (HTML untuk hasil)
+            <!-- // (HTML untuk hasil) -->
+			html += `${resultHeader} <div style="margin-bottom: 0.4rem;"> Risk: <span style="color:${color};"><strong>${formatNum(inputVal)}%</strong> of account (<strong>${formatNum(riskAmt)} USDT</strong>)</span> </div> <div style="margin-bottom: 1rem;"> Margin required: <span style="color:${color};"><strong>${formatNum(marginReq)} USDT</strong></span> </div> <div> <strong>Account Balance:</strong> ${formatNum(acctSize)} USDT<br> <strong>Max Order Size:</strong> ${formatNum(maxContracts)} contracts (~${formatNum(posSize)} USDT)<br> <em>(Contract size: ${formatNum(contractSize)})</em> </div>`;
             saveToHistory({ side: selectedSide, pair: selectedPair, mode: 'Risk%', input: formatNum(inputVal), result: `Max ${formatNum(maxContracts)} contracts (~${formatNum(posSize)} USDT), Margin ${formatNum(marginReq)} USDT`, entry: entry, stop: stop, leverage: leverage });
         } else {
             // ... (Kalkulasi untuk mode 'Contracts')
@@ -292,7 +298,8 @@
             const riskPct = (riskAmt / acctSize) * 100;
             const posSize = contracts * contractSize * entry;
             const marginReq = posSize / leverage;
-            html += `${resultHeader} ...`; // (HTML untuk hasil)
+			<!-- // (HTML untuk hasil) -->
+            html += `${resultHeader} <div style="margin-bottom: 0.4rem;"> Risk: <span style="color:${color};"><strong>${formatNum(riskPct)}%</strong> of account (<strong>${formatNum(riskAmt)} USDT</strong>)</span> </div> <div style="margin-bottom: 1rem;"> Margin required: <span style="color:${color};"><strong>${formatNum(marginReq)} USDT</strong></span> </div> <div> <strong>Account Balance:</strong> ${formatNum(acctSize)} USDT<br> <strong>Order Size:</strong> ${formatNum(contracts)} contracts (~${formatNum(posSize)} USDT)<br> <em>(Contract size: ${formatNum(contractSize)})</em> </div>`;
             saveToHistory({ side: selectedSide, pair: selectedPair, mode: 'Contracts', input: formatNum(contracts), result: `Risk ${formatNum(riskPct)}%, Margin ${formatNum(marginReq)} USDT`, entry: entry, stop: stop, leverage: leverage });
         }
         
@@ -307,9 +314,24 @@
     }
     
     // Fungsi untuk menampilkan hasil di kotak utama
-    function showResult(html, showCopy) { /* ... */ }
+    function showResult(html, showCopy) { 
+        resultDiv.innerHTML = html; 
+        resultContainer.style.display = 'block'; 
+        setTimeout(() => resultDiv.classList.add('show'), 20); 
+        if (showCopy) { 
+            copyBtn.style.display = 'block'; 
+        } else { 
+            copyBtn.style.display = 'none'; 
+        } 
+    }
     // Event listener untuk tombol 'Copy'
-    copyBtn.addEventListener('click', () => { /* ... */ });
+    copyBtn.addEventListener('click', () => { 
+        const text = resultDiv.innerText.trim(); 
+        navigator.clipboard.writeText(text).then(() => { 
+            copyBtn.textContent = 'Copied!'; 
+            setTimeout(() => (copyBtn.textContent = 'Copy Result'), 1500); 
+        }); 
+    });
     
     // ======================================================================
     // BAGIAN 5: MANAJEMEN RIWAYAT (HISTORY)
@@ -318,7 +340,13 @@
     const historyList = document.getElementById('historyList');
     
     // Menyimpan entri baru ke localStorage dan memanggil renderHistory
-    function saveToHistory(entry) { /* ... */ }
+    function saveToHistory(entry) { 
+        const hist = JSON.parse(localStorage.getItem('tradeHistory') || '[]'); 
+        hist.unshift({ ...entry, timestamp: new Date().toLocaleString() }); 
+        if (hist.length > 20) hist.pop(); 
+        localStorage.setItem('tradeHistory', JSON.stringify(hist)); 
+        renderHistory(); 
+    }
 
     // Mengambil data dari localStorage dan menampilkannya di halaman
     // Dibuat "pintar" agar tidak error jika format data lama & baru tercampur
@@ -347,7 +375,10 @@
     document.addEventListener('DOMContentLoaded', renderHistory);
 
     // Event listener untuk tombol 'Clear History'
-    document.getElementById('clearHistoryBtn').addEventListener('click', () => { /* ... */ });
+    document.getElementById('clearHistoryBtn').addEventListener('click', () => { 
+        localStorage.removeItem('tradeHistory'); 
+        renderHistory(); 
+    });
     
     // Fungsi untuk me-reset kolom input setelah kalkulasi
     <!-- function resetInputs(clearAccount = true) { /* ... */ } -->
@@ -378,7 +409,7 @@
     // Event listener untuk tombol 'Enter' pada beberapa input
     ['accountSize', 'inputValue', 'leverage', 'entryPrice', 'stopLossPrice', 'stopLossPercent'].forEach(id => { 
         document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') calculate(); }); 
-    });
+    }	);
   </script>
 
 </body>
