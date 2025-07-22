@@ -350,7 +350,30 @@
     document.getElementById('clearHistoryBtn').addEventListener('click', () => { /* ... */ });
     
     // Fungsi untuk me-reset kolom input setelah kalkulasi
-    function resetInputs(clearAccount = true) { /* ... */ }
+    <!-- function resetInputs(clearAccount = true) { /* ... */ } -->
+	function resetInputs(clearAccount = true) { 
+        if (clearAccount) { 
+            document.getElementById('accountSize').value = ''; 
+            document.getElementById('leverage').value = ''; 
+        } 
+        document.getElementById('pairInput').value = ''; 
+        document.getElementById('contractSize').value = ''; 
+        document.querySelector('input[name="mode"][value="risk"]').checked = true; 
+        document.getElementById('inputValue').value = '1'; 
+        document.getElementById('entryPrice').value = ''; 
+        document.getElementById('stopLossPrice').value = ''; 
+        document.getElementById('stopLossPercent').value = '2';
+        document.querySelector('input[name="slMode"][value="price"]').checked = true;
+        document.getElementById('slPriceRow').style.display = '';
+        document.getElementById('slPercentRow').style.display = 'none';
+        selectedSide = null; 
+        selectedPair = null; 
+        contractSize = 1; 
+        highlightedIndex = -1; 
+        optionsList.style.display = 'none'; 
+        // PERBAIKAN FINAL: Baris ini dihapus untuk kompatibilitas mobile
+        // document.getElementById('accountSize').focus(); 
+    }
     
     // Event listener untuk tombol 'Enter' pada beberapa input
     ['accountSize', 'inputValue', 'leverage', 'entryPrice', 'stopLossPrice', 'stopLossPercent'].forEach(id => { 
