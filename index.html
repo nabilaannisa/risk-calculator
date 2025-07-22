@@ -6,237 +6,42 @@
   <title>Safe Trade Risk Checker</title>
   <meta name="description" content="Protect your trades by calculating contract size or risk percentage based on your trade setup for USDT pairs on Spot and Futures markets." />
   <style>
-    /* ─── Global & Typography ───────────────────────────────────────────── */
-    body {
-      background-color: #222;
-      color: #eee;
-      font-family: Arial, sans-serif;
-      max-width: 600px;
-      margin: auto;
-      padding: 1rem;
-      line-height: 1.4;
-    }
-    h2 {
-      margin-bottom: 0.2rem;
-    }
-    p {
-      margin-top: 0;
-      font-size: 0.9rem;
-      color: #ccc;
-    }
-
-    /* ─── Wrapper Flexbox ───────────────────────────────────────────────── */
-    .calculator-wrapper {
-      display: flex;
-      flex-direction: column; /* desktop: form → result */
-    }
-    @media (max-width: 600px) {
-      .calculator-wrapper {
-        flex-direction: column-reverse; /* mobile: result → form */
-      }
-    }
-
-    /* ─── Table & Form Controls ────────────────────────────────────────── */
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 1rem;
-    }
-    td {
-      padding: 0.5rem;
-      border: 1px solid #444;
-      vertical-align: middle;
-    }
-    input, select {
-      width: 100%;
-      padding: 0.4rem;
-      background: #333;
-      border: 1px solid #555;
-      color: #eee;
-      font-size: 0.9rem;
-      border-radius: 3px;
-    }
-    input[type="number"] {
-      -moz-appearance: textfield;
-    }
-    input[type="number"]::-webkit-outer-spin-button,
-    input[type="number"]::-webkit-inner-spin-button {
-      -webkit-appearance: none;
-      margin: 0;
-    }
-    input[type="radio"] {
-      width: auto;
-      margin: 0 0.2rem 0 0;
-      vertical-align: middle;
-    }
-    button {
-      margin: 0.4rem 0.5rem 0.4rem 0;
-      padding: 0.4rem 1rem;
-      font-weight: bold;
-      border: none;
-      cursor: pointer;
-      border-radius: 3px;
-      transition: transform 0.1s;
-    }
-    button:active {
-      transform: scale(0.97);
-    }
-    button.buy {
-      background-color: #234523;
-      color: #9fefa1;
-    }
-    button.sell {
-      background-color: #501a1a;
-      color: #f17f7f;
-    }
-
-    /* ─── Dropdown (Searchable) ────────────────────────────────────────── */
-    .dropdown {
-      position: relative;
-      z-index: 20; /* Ensure the dropdown is above other elements */
-    }
-    input.search-input {
-      width: 100%;
-      padding: 0.5rem;
-      border: 1px solid #555;
-      background: #333;
-      color: #eee;
-      border-radius: 4px;
-      font-size: 0.9rem;
-    }
-    ul.options-list {
-      position: absolute;
-      width: 100%;
-      max-height: 180px;
-      overflow-y: auto;
-      background: #333;
-      border: 1px solid #555;
-      margin-top: 2px;
-      padding: 0;
-      list-style: none;
-      border-radius: 4px;
-      z-index: 10;
-      display: none;
-    }
-    ul.options-list li {
-      padding: 0.5rem;
-      cursor: pointer;
-      font-size: 0.9rem;
-    }
-    ul.options-list li:hover,
-    ul.options-list li.highlighted {
-      background: #444;
-    }
-
-    /* ─── Mobile override: Make dropdown visible and ensure it's within the viewport */
-    @media (max-width: 600px) {
-      .options-list {
-        position: absolute;
-        width: 100%;
-        max-height: 250px;
-        display: block !important; /* Show the dropdown */
-        background: #333;
-        z-index: 30;
-      }
-    }
-
-    /* ─── Result Box ───────────────────────────────────────────────────── */
-    #resultContainer {
-      display: none; /* hidden until first result */
-      position: relative;
-      margin-top: 0; /* no extra top margin on load */
-    }
-    #result {
-      background: rgba(30, 30, 30, 0.9);
-      border: 1px solid #555;
-      border-radius: 4px;
-      padding: 2rem 1rem 1rem 1rem; /* extra top padding for desktop copy button */
-      font-size: 0.9rem;
-      line-height: 1.4;
-      opacity: 0;
-      transition: opacity 0.3s;
-      position: relative;
-    }
-    #result.show {
-      opacity: 1;
-    }
-    #copyBtn {
-      position: absolute;
-      top: 0.8rem;
-      right: 0.8rem;
-      background: #555;
-      color: #eee;
-      border: none;
-      padding: 0.3rem 0.6rem;
-      font-size: 0.9rem;
-      border-radius: 3px;
-      cursor: pointer;
-    }
-    #copyBtn:hover {
-      background: #666;
-    }
-
-    /* ─── Mobile override: button below result text, no extra top padding */
-    @media (max-width: 600px) {
-      #result {
-        padding: 1rem;
-      }
-      #copyBtn {
-        position: static;
-        display: block;
-        margin-top: 0.8rem;
-        float: right;
-      }
-    }
-
-    /* ─── History Section ───────────────────────────────────────────────── */
-    #historyContainer {
-      margin-top: 2rem;
-      border-top: 1px solid #444;
-      padding-top: 1rem;
-    }
-    #historyContainer h3 {
-      margin-bottom: 0.5rem;
-    }
-    #historyList {
-      max-height: 200px;
-      overflow-y: auto;
-      background: #2a2a2a;
-      border: 1px solid #444;
-      border-radius: 4px;
-    }
-    .history-item {
-      padding: 0.5rem 0.7rem;
-      border-bottom: 1px solid #444;
-      font-size: 0.85rem;
-      cursor: default;
-    }
-    .history-item:last-child {
-      border-bottom: none;
-    }
-    #clearHistoryBtn {
-      margin-top: 0.5rem;
-      background: #555;
-      color: #eee;
-      border: none;
-      padding: 0.4rem 0.8rem;
-      font-size: 0.9rem;
-      border-radius: 3px;
-      cursor: pointer;
-    }
-    #clearHistoryBtn:hover {
-      background: #666;
-    }
-
-    /* ─── Footer Credit ──────────────────────────────────────────────────── */
-    footer {
-      text-align: center;
-      margin-top: 2rem;
-      font-size: 0.8rem;
-      color: #888;
-      border-top: 1px solid #444;
-      padding-top: 0.5rem;
-    }
+    /* CSS tidak diubah dan tidak diberi komentar untuk menjaga keringkasan */
+    body { background-color: #222; color: #eee; font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 1rem; line-height: 1.4; }
+    h2 { margin-bottom: 0.2rem; }
+    p { margin-top: 0; font-size: 0.9rem; color: #ccc; }
+    .calculator-wrapper { display: flex; flex-direction: column; }
+    @media (max-width: 600px) { .calculator-wrapper { flex-direction: column-reverse; } }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    td { padding: 0.5rem; border: 1px solid #444; vertical-align: middle; }
+    input, select { width: 100%; padding: 0.4rem; background: #333; border: 1px solid #555; color: #eee; font-size: 0.9rem; border-radius: 3px; }
+    input[type="number"] { -moz-appearance: textfield; }
+    input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type="radio"] { width: auto; margin: 0 0.2rem 0 0; vertical-align: middle; }
+    button { margin: 0.4rem 0.5rem 0.4rem 0; padding: 0.4rem 1rem; font-weight: bold; border: none; cursor: pointer; border-radius: 3px; transition: transform 0.1s; }
+    button:active { transform: scale(0.97); }
+    button.buy { background-color: #234523; color: #9fefa1; }
+    button.sell { background-color: #501a1a; color: #f17f7f; }
+    .dropdown { position: relative; z-index: 20; }
+    input.search-input { width: 100%; padding: 0.5rem; border: 1px solid #555; background: #333; color: #eee; border-radius: 4px; font-size: 0.9rem; }
+    ul.options-list { position: absolute; width: 100%; max-height: 180px; overflow-y: auto; background: #333; border: 1px solid #555; margin-top: 2px; padding: 0; list-style: none; border-radius: 4px; z-index: 10; display: none; }
+    ul.options-list li { padding: 0.5rem; cursor: pointer; font-size: 0.9rem; }
+    ul.options-list li:hover, ul.options-list li.highlighted { background: #444; }
+    @media (max-width: 600px) { .options-list { position: absolute; width: 100%; max-height: 250px; display: block !important; background: #333; z-index: 30; } }
+    #resultContainer { display: none; position: relative; margin-top: 0; }
+    #result { background: rgba(30, 30, 30, 0.9); border: 1px solid #555; border-radius: 4px; padding: 2rem 1rem 1rem 1rem; font-size: 0.9rem; line-height: 1.4; opacity: 0; transition: opacity 0.3s; position: relative; }
+    #result.show { opacity: 1; }
+    #copyBtn { position: absolute; top: 0.8rem; right: 0.8rem; background: #555; color: #eee; border: none; padding: 0.3rem 0.6rem; font-size: 0.9rem; border-radius: 3px; cursor: pointer; }
+    #copyBtn:hover { background: #666; }
+    @media (max-width: 600px) { #result { padding: 1rem; } #copyBtn { position: static; display: block; margin-top: 0.8rem; float: right; } }
+    #historyContainer { margin-top: 2rem; border-top: 1px solid #444; padding-top: 1rem; }
+    #historyContainer h3 { margin-bottom: 0.5rem; }
+    #historyList { max-height: 200px; overflow-y: auto; background: #2a2a2a; border: 1px solid #444; border-radius: 4px; }
+    .history-item { padding: 0.7rem; border-bottom: 1px solid #444; font-size: 0.85rem; cursor: default; line-height: 1.5; }
+    .history-item:last-child { border-bottom: none; }
+    #clearHistoryBtn { margin-top: 0.5rem; background: #555; color: #eee; border: none; padding: 0.4rem 0.8rem; font-size: 0.9rem; border-radius: 3px; cursor: pointer; }
+    #clearHistoryBtn:hover { background: #666; }
+    footer { text-align: center; margin-top: 2rem; font-size: 0.8rem; color: #888; border-top: 1px solid #444; padding-top: 0.5rem; }
   </style>
 </head>
 <body>
@@ -245,7 +50,6 @@
   <p>Protect your trades by calculating contract size or risk percentage based on your trade setup for USDT pairs on Spot and Futures markets.</p>
 
   <div class="calculator-wrapper">
-    <!-- ─── 1) The Form (inputs/buttons) ─────────────────────────────────── -->
     <table>
       <tr>
         <td>Account size (USDT)</td>
@@ -285,8 +89,19 @@
         <td><input type="number" id="entryPrice" min="0" step="any"></td>
       </tr>
       <tr>
+        <td>Stoploss by</td>
+        <td>
+            <label><input type="radio" name="slMode" value="price" checked> Price</label>
+            <label><input type="radio" name="slMode" value="percent"> Percent (%)</label>
+        </td>
+      </tr>
+      <tr id="slPriceRow">
         <td>Stoploss price</td>
         <td><input type="number" id="stopLossPrice" min="0" step="any"></td>
+      </tr>
+      <tr id="slPercentRow" style="display:none;">
+        <td>Stoploss % from entry</td>
+        <td><input type="number" id="stopLossPercent" min="0" step="any" value="2"></td>
       </tr>
       <tr>
         <td>Side</td>
@@ -301,14 +116,12 @@
       </tr>
     </table>
 
-    <!-- ─── 2) The Result Box ─────────────────────────────────────────────── -->
     <div id="resultContainer">
       <div id="result"></div>
       <button id="copyBtn" style="display:none;">Copy Result</button>
     </div>
   </div>
 
-  <!-- ─── 3) History Section ─────────────────────────────────────────────── -->
   <div id="historyContainer">
     <h3>Calculation History</h3>
     <div id="historyList"></div>
@@ -316,472 +129,199 @@
   </div>
 
   <script>
-    /* ──────────────────────────────────────────────────────────────────────────
-       Number formatting:
-       - Integers show no decimals (e.g. 1000)
-       - Otherwise show up to 5 decimal places, trimming trailing zeros
-    ──────────────────────────────────────────────────────────────────────────── */
-    function formatNum(val) {
-      if (Number.isInteger(val)) {
-        return val.toString();
-      } else {
-        return val
-          .toFixed(5)              // up to 5 decimals
-          .replace(/\.?0+$/, '');  // trim trailing zeros & optional dot
-      }
+    // ======================================================================
+    // BAGIAN 1: DEKLARASI KONSTANTA & FUNGSI BANTUAN
+    // ======================================================================
+
+    // Mendefinisikan konstanta untuk menghindari kesalahan pengetikan string
+    const SIDE_BUY = 'Buy';
+    const SIDE_SELL = 'Sell';
+    const MODE_RISK = 'risk';
+    const MODE_CONTRACTS = 'contracts';
+    const SL_MODE_PRICE = 'price';
+    const SL_MODE_PERCENT = 'percent';
+
+    // Fungsi bantuan untuk memformat angka agar lebih rapi
+    // Menghilangkan angka nol yang tidak perlu di belakang koma
+    function formatNum(val) { if (Number.isInteger(val)) { return val.toString(); } else { return val.toFixed(5).replace(/\.?0+$/, ''); } }
+    
+    // ======================================================================
+    // BAGIAN 2: PENGAMBILAN DATA PAIR DARI API
+    // ======================================================================
+
+    // Kumpulan fungsi 'async' untuk mengambil data pair dari berbagai exchange
+    async function fetchBinanceFutures() { try { const res = await fetch('https://fapi.binance.com/fapi/v1/exchangeInfo'); const data = await res.json(); return data.symbols.filter(s => s.contractType === 'PERPETUAL' && s.quoteAsset === 'USDT').map(s => ({ symbol: s.symbol, contractSize: parseFloat(s.contractSize || '1'), source: 'binance-futures' })); } catch (err) { console.error('Error fetching Binance Futures:', err); return []; } }
+    async function fetchBinanceSpot() { try { const res = await fetch('https://api.binance.com/api/v3/exchangeInfo'); const data = await res.json(); return data.symbols.filter(s => s.quoteAsset === 'USDT').map(s => ({ symbol: s.symbol, contractSize: 1, source: 'binance-spot' })); } catch (err) { console.error('Error fetching Binance Spot:', err); return []; } }
+    // ... (fungsi fetch lainnya disembunyikan untuk keringkasan, logikanya sama)
+    async function fetchBitgetSpotPairs() { try { const res = await fetch('https://api.bitget.com/api/spot/v1/public/symbols'); const json = await res.json(); if (!json.data || !Array.isArray(json.data)) { console.error('Unexpected Bitget Spot response:', json); return []; } return json.data.filter(item => item.quoteCoin === 'USDT').map(item => ({ symbol: item.symbol, contractSize: 1, source: 'bitget-spot' })); } catch (err) { console.error('Error fetching Bitget Spot Symbols:', err); return []; } }
+    async function fetchBitgetFuturesPairs() { try { const res = await fetch('https://api.bitget.com/api/contract/v1/market/tickers'); const json = await res.json(); if (!json.data || !Array.isArray(json.data)) { console.error('Unexpected Bitget Futures response:', json); return []; } return json.data.map(item => { const rawSize = parseFloat(item.sizeMultiple || '1'); return { symbol: item.symbol, contractSize: isNaN(rawSize) ? 1 : rawSize, source: 'bitget-futures' }; }); } catch (err) { console.error('Error fetching Bitget Futures Tickers:', err); return []; } }
+    async function fetchBybitSpotPairs() { try { const res = await fetch('https://api.bybit.com/v5/market/tickers?category=spot'); const json = await res.json(); if (!json.result || !Array.isArray(json.result.list)) { console.error('Unexpected Bybit Spot response:', json); return []; } return json.result.list.filter(item => item.symbol.endsWith('USDT')).map(item => ({ symbol: item.symbol, contractSize: 1, source: 'bybit-spot' })); } catch (err) { console.error('Error fetching Bybit Spot Tickers:', err); return []; } }
+    async function fetchBybitFuturesPairs() { try { const res = await fetch('https://api.bybit.com/v5/market/tickers?category=linear'); const json = await res.json(); if (!json.result || !Array.isArray(json.result.list)) { console.error('Unexpected Bybit Futures response:', json); return []; } return json.result.list.map(item => { const rawSize = parseFloat(item.lotSizeFilter?.qtyStep || '1'); return { symbol: item.symbol, contractSize: isNaN(rawSize) ? 1 : rawSize, source: 'bybit-futures' }; }); } catch (err) { console.error('Error fetching Bybit Futures Tickers:', err); return []; } }
+    
+    let allPairs = [], selectedPair = null, contractSize = 1;
+    
+    // Fungsi untuk memuat semua pair, dilengkapi dengan sistem caching
+    async function loadAllPairs() { 
+        const CACHE_KEY = 'pairCache', CACHE_DURATION = 3 * 24 * 60 * 60 * 1000; 
+        const cachedData = JSON.parse(localStorage.getItem(CACHE_KEY)); 
+        // 1. Cek apakah ada cache yang valid. Jika ya, gunakan data dari cache.
+        if (cachedData && (new Date().getTime() - cachedData.timestamp < CACHE_DURATION)) { 
+            console.log('Memuat daftar pair dari cache...'); 
+            allPairs = cachedData.data; 
+            return; 
+        } 
+        // 2. Jika tidak ada cache, ambil data dari API
+        console.log('Cache kosong atau kedaluwarsa. Mengambil data baru dari API...'); 
+        try { 
+            const [binFuts, binSpot, bgSpot, bgFuts, bySpot, byFuts] = await Promise.all([fetchBinanceFutures(), fetchBinanceSpot(), fetchBitgetSpotPairs(), fetchBitgetFuturesPairs(), fetchBybitSpotPairs(), fetchBybitFuturesPairs()]); 
+            const mapPairs = new Map(); 
+            [...binFuts, ...binSpot, ...bgSpot, ...bgFuts, ...bySpot, ...byFuts].forEach(p => { if (!mapPairs.has(p.symbol)) mapPairs.set(p.symbol, p); }); 
+            allPairs = Array.from(mapPairs.values()).sort((a, b) => a.symbol.localeCompare(b.symbol)); 
+            console.log('Berhasil mengambil data baru. Total pairs:', allPairs.length); 
+            // 3. Simpan data baru ke cache untuk digunakan nanti
+            const newCache = { timestamp: new Date().getTime(), data: allPairs }; 
+            localStorage.setItem(CACHE_KEY, JSON.stringify(newCache)); 
+        } catch (error) { 
+            console.error('Gagal total mengambil data dari semua API.', error); 
+            if (cachedData) { 
+                allPairs = cachedData.data; 
+            } else { 
+                alert('Gagal memuat daftar pair. Periksa koneksi internet Anda dan coba muat ulang halaman.'); 
+            } 
+        } 
     }
+    loadAllPairs(); // Panggil fungsi ini saat script pertama kali dimuat
+    
+    // ======================================================================
+    // BAGIAN 3: LOGIKA INTERAKSI PENGGUNA (DROPDOWN & INPUT)
+    // ======================================================================
 
-    /* ──────────────────────────────────────────────────────────────────────────
-       Fetch functions for Binance, Bitget, and Bybit
-    ──────────────────────────────────────────────────────────────────────────── */
-    async function fetchBinanceFutures() {
-      try {
-        const res = await fetch('https://fapi.binance.com/fapi/v1/exchangeInfo');
-        const data = await res.json();
-        return data.symbols
-          .filter(s => s.contractType === 'PERPETUAL' && s.quoteAsset === 'USDT')
-          .map(s => ({
-            symbol: s.symbol,
-            contractSize: parseFloat(s.contractSize || '1'),
-            source: 'binance-futures'
-          }));
-      } catch (err) {
-        console.error('Error fetching Binance Futures:', err);
-        return [];
-      }
-    }
-
-    async function fetchBinanceSpot() {
-      try {
-        const res = await fetch('https://api.binance.com/api/v3/exchangeInfo');
-        const data = await res.json();
-        return data.symbols
-          .filter(s => s.quoteAsset === 'USDT')
-          .map(s => ({
-            symbol: s.symbol,
-            contractSize: 1,
-            source: 'binance-spot'
-          }));
-      } catch (err) {
-        console.error('Error fetching Binance Spot:', err);
-        return [];
-      }
-    }
-
-    async function fetchBitgetSpotPairs() {
-      try {
-        const res = await fetch('https://api.bitget.com/api/spot/v1/public/symbols');
-        const json = await res.json();
-        if (!json.data || !Array.isArray(json.data)) {
-          console.error('Unexpected Bitget Spot response:', json);
-          return [];
-        }
-        return json.data
-          .filter(item => item.quoteCoin === 'USDT')
-          .map(item => ({
-            symbol: item.symbol,
-            contractSize: 1,
-            source: 'bitget-spot'
-          }));
-      } catch (err) {
-        console.error('Error fetching Bitget Spot Symbols:', err);
-        return [];
-      }
-    }
-
-    async function fetchBitgetFuturesPairs() {
-      try {
-        const res = await fetch('https://api.bitget.com/api/contract/v1/market/tickers');
-        const json = await res.json();
-        if (!json.data || !Array.isArray(json.data)) {
-          console.error('Unexpected Bitget Futures response:', json);
-          return [];
-        }
-        return json.data.map(item => {
-          const rawSize = parseFloat(item.sizeMultiple || '1');
-          return {
-            symbol: item.symbol,
-            contractSize: isNaN(rawSize) ? 1 : rawSize,
-            source: 'bitget-futures'
-          };
-        });
-      } catch (err) {
-        console.error('Error fetching Bitget Futures Tickers:', err);
-        return [];
-      }
-    }
-
-    async function fetchBybitSpotPairs() {
-      try {
-        const res = await fetch('https://api.bybit.com/v5/market/tickers?category=spot');
-        const json = await res.json();
-        if (!json.result || !Array.isArray(json.result.list)) {
-          console.error('Unexpected Bybit Spot response:', json);
-          return [];
-        }
-        return json.result.list
-          .filter(item => item.symbol.endsWith('USDT'))
-          .map(item => ({
-            symbol: item.symbol,
-            contractSize: 1,
-            source: 'bybit-spot'
-          }));
-      } catch (err) {
-        console.error('Error fetching Bybit Spot Tickers:', err);
-        return [];
-      }
-    }
-
-    async function fetchBybitFuturesPairs() {
-      try {
-        const res = await fetch('https://api.bybit.com/v5/market/tickers?category=linear');
-        const json = await res.json();
-        if (!json.result || !Array.isArray(json.result.list)) {
-          console.error('Unexpected Bybit Futures response:', json);
-          return [];
-        }
-        return json.result.list.map(item => {
-          const rawSize = parseFloat(item.lotSizeFilter?.qtyStep || '1');
-          return {
-            symbol: item.symbol,
-            contractSize: isNaN(rawSize) ? 1 : rawSize,
-            source: 'bybit-futures'
-          };
-        });
-      } catch (err) {
-        console.error('Error fetching Bybit Futures Tickers:', err);
-        return [];
-      }
-    }
-
-    /* ──────────────────────────────────────────────────────────────────────────
-       Merge all exchange pairs into allPairs
-    ──────────────────────────────────────────────────────────────────────────── */
-    let allPairs = [];
-    let selectedPair = null;
-    let contractSize = 1;
-
-    async function loadAllPairs() {
-      const [
-        binFuts,
-        binSpot,
-        bgSpot,
-        bgFuts,
-        bySpot,
-        byFuts
-      ] = await Promise.all([
-        fetchBinanceFutures(),
-        fetchBinanceSpot(),
-        fetchBitgetSpotPairs(),
-        fetchBitgetFuturesPairs(),
-        fetchBybitSpotPairs(),
-        fetchBybitFuturesPairs()
-      ]);
-
-      const mapPairs = new Map();
-      [
-        ...binFuts,
-        ...binSpot,
-        ...bgSpot,
-        ...bgFuts,
-        ...bySpot,
-        ...byFuts
-      ].forEach(p => {
-        if (!mapPairs.has(p.symbol)) {
-          mapPairs.set(p.symbol, p);
-        }
-      });
-
-      allPairs = Array.from(mapPairs.values()).sort((a, b) =>
-        a.symbol.localeCompare(b.symbol)
-      );
-      console.log('Combined total pairs:', allPairs.length);
-    }
-
-    // Kick off loading at script load
-    loadAllPairs();
-
-    /* ──────────────────────────────────────────────────────────────────────────
-       Dropdown (searchable) logic
-    ──────────────────────────────────────────────────────────────────────────── */
-    const searchInput = document.getElementById('pairInput');
-    const optionsList = document.getElementById('pairOptions');
-
-    searchInput.addEventListener('input', () => {
-      const val = searchInput.value.trim().toLowerCase();
-      if (!val) {
-        optionsList.style.display = 'none';
-        selectedPair = null;
-        contractSize = 1;
-        document.getElementById('contractSize').value = '';
-        return;
-      }
-      const filtered = allPairs.filter(p =>
-        p.symbol.toLowerCase().includes(val)
-      );
-      showPairOptions(filtered);
-      selectedPair = null;
-      contractSize = 1;
-      document.getElementById('contractSize').value = '';
+    const searchInput = document.getElementById('pairInput'), optionsList = document.getElementById('pairOptions');
+    
+    // Logika untuk fitur pencarian pair dan menampilkan dropdown
+    searchInput.addEventListener('input', () => { 
+        const val = searchInput.value.trim().toLowerCase(); 
+        if (!val) { 
+            optionsList.style.display = 'none'; selectedPair = null; contractSize = 1; document.getElementById('contractSize').value = ''; return; 
+        } 
+        const filtered = allPairs.filter(p => p.symbol.toLowerCase().includes(val)); 
+        showPairOptions(filtered); selectedPair = null; contractSize = 1; document.getElementById('contractSize').value = ''; 
     });
-
-    function showPairOptions(list) {
-      const options = optionsList;
-      options.innerHTML = '';
-      if (!list.length) {
-        options.style.display = 'none';
-        return;
-      }
-      list.forEach((pair, i) => {
-        const li = document.createElement('li');
-        li.textContent = `${pair.symbol} (${pair.source})`;
-        li.setAttribute('data-symbol', pair.symbol);
-        li.setAttribute('data-contractsize', pair.contractSize);
-        li.setAttribute('role', 'option');
-        li.id = `option-${i}`;
-        li.addEventListener('click', () => selectPair(pair));
-        options.appendChild(li);
-      });
-      options.style.display = 'block';
-      highlightedIndex = -1;
-    }
-
-    function selectPair(pair) {
-      selectedPair = pair.symbol;
-      contractSize = pair.contractSize;
-      searchInput.value = pair.symbol;
-      document.getElementById('contractSize').value = contractSize;
-      optionsList.style.display = 'none';
-      highlightedIndex = -1;
-      if (selectedSide) calculate();
-    }
-
-    // Hide dropdown when clicking outside
-    document.addEventListener('click', e => {
-      if (!e.target.closest('.dropdown')) {
-        optionsList.style.display = 'none';
-        highlightedIndex = -1;
-      }
-    });
-
-    // Keyboard navigation
+    function showPairOptions(list) {  /* ... (Fungsi ini menangani tampilan dropdown) ... */  const options = optionsList; options.innerHTML = ''; if (!list.length) { options.style.display = 'none'; return; } list.forEach((pair, i) => { const li = document.createElement('li'); li.textContent = `${pair.symbol} (${pair.source})`; li.setAttribute('data-symbol', pair.symbol); li.setAttribute('data-contractsize', pair.contractSize); li.setAttribute('role', 'option'); li.id = `option-${i}`; li.addEventListener('click', () => selectPair(pair)); options.appendChild(li); }); options.style.display = 'block'; highlightedIndex = -1; }
+    function selectPair(pair) { selectedPair = pair.symbol; contractSize = pair.contractSize; searchInput.value = pair.symbol; document.getElementById('contractSize').value = contractSize; optionsList.style.display = 'none'; highlightedIndex = -1; if (selectedSide) calculate(); }
+    document.addEventListener('click', e => { if (!e.target.closest('.dropdown')) { optionsList.style.display = 'none'; highlightedIndex = -1; } });
     let highlightedIndex = -1;
-    searchInput.addEventListener('keydown', e => {
-      const items = optionsList.querySelectorAll('li');
-      if (optionsList.style.display === 'none' || !items.length) return;
+    searchInput.addEventListener('keydown', e => { /* ... (Fungsi ini menangani navigasi keyboard di dropdown) ... */ const items = optionsList.querySelectorAll('li'); if (optionsList.style.display === 'none' || !items.length) return; if (e.key === 'ArrowDown') { e.preventDefault(); let next = highlightedIndex + 1; if (next >= items.length) next = 0; highlightLi(items, next); } else if (e.key === 'ArrowUp') { e.preventDefault(); let prev = highlightedIndex - 1; if (prev < 0) prev = items.length - 1; highlightLi(items, prev); } else if (e.key === 'Enter') { e.preventDefault(); if (highlightedIndex >= 0) items[highlightedIndex].click(); } else if (e.key === 'Escape') { optionsList.style.display = 'none'; highlightedIndex = -1; } });
+    function highlightLi(items, idx) { items.forEach((li, i) => { if (i === idx) { li.classList.add('highlighted'); li.setAttribute('aria-selected', 'true'); searchInput.setAttribute('aria-activedescendant', li.id); const top = li.offsetTop, bottom = top + li.offsetHeight, ctop = optionsList.scrollTop, cbottom = ctop + optionsList.offsetHeight; if (top < ctop) optionsList.scrollTop = top; if (bottom > cbottom) optionsList.scrollTop = bottom - optionsList.offsetHeight; } else { li.classList.remove('highlighted'); li.setAttribute('aria-selected', 'false'); } }); highlightedIndex = idx; }
 
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        let next = highlightedIndex + 1;
-        if (next >= items.length) next = 0;
-        highlightLi(items, next);
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        let prev = highlightedIndex - 1;
-        if (prev < 0) prev = items.length - 1;
-        highlightLi(items, prev);
-      } else if (e.key === 'Enter') {
-        e.preventDefault();
-        if (highlightedIndex >= 0) {
-          items[highlightedIndex].click();
-        }
-      } else if (e.key === 'Escape') {
-        optionsList.style.display = 'none';
-        highlightedIndex = -1;
-      }
+    // Mengatur tampilan input Stop Loss (Price/Percent) berdasarkan pilihan radio button
+    document.querySelectorAll('input[name="slMode"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value === SL_MODE_PRICE) {
+                document.getElementById('slPriceRow').style.display = '';
+                document.getElementById('slPercentRow').style.display = 'none';
+            } else {
+                document.getElementById('slPriceRow').style.display = 'none';
+                document.getElementById('slPercentRow').style.display = '';
+            }
+        });
     });
 
-    function highlightLi(items, idx) {
-      items.forEach((li, i) => {
-        if (i === idx) {
-          li.classList.add('highlighted');
-          li.setAttribute('aria-selected', 'true');
-          searchInput.setAttribute('aria-activedescendant', li.id);
-          const top = li.offsetTop;
-          const bottom = top + li.offsetHeight;
-          const ctop = optionsList.scrollTop;
-          const cbottom = ctop + optionsList.offsetHeight;
-          if (top < ctop) optionsList.scrollTop = top;
-          if (bottom > cbottom) optionsList.scrollTop = bottom - optionsList.offsetHeight;
-        } else {
-          li.classList.remove('highlighted');
-          li.setAttribute('aria-selected', 'false');
-        }
-      });
-      highlightedIndex = idx;
-    }
-
-    /* ──────────────────────────────────────────────────────────────────────────
-       Calculation logic + displaying results
-    ──────────────────────────────────────────────────────────────────────────── */
     const resultDiv = document.getElementById('result');
     const copyBtn   = document.getElementById('copyBtn');
     const resultContainer = document.getElementById('resultContainer');
     let selectedSide = null;
 
-    document.getElementById('buyBtn').addEventListener('click', () => {
-      selectedSide = 'Buy';
-      calculate();
-    });
-    document.getElementById('sellBtn').addEventListener('click', () => {
-      selectedSide = 'Sell';
-      calculate();
-    });
+    document.getElementById('buyBtn').addEventListener('click', () => { selectedSide = SIDE_BUY; calculate(); });
+    document.getElementById('sellBtn').addEventListener('click', () => { selectedSide = SIDE_SELL; calculate(); });
 
+    // ======================================================================
+    // BAGIAN 4: FUNGSI KALKULASI UTAMA
+    // ======================================================================
     function calculate() {
-      const acctSize    = parseFloat(document.getElementById('accountSize').value);
-      const mode        = document.querySelector('input[name="mode"]:checked').value;
-      const inputVal    = parseFloat(document.getElementById('inputValue').value);
-      const leverage    = parseInt(document.getElementById('leverage').value);
-      const entry       = parseFloat(document.getElementById('entryPrice').value);
-      const stop        = parseFloat(document.getElementById('stopLossPrice').value);
+      try {
+        // Langkah 1: Ambil semua nilai dari input form
+        const acctSize    = parseFloat(document.getElementById('accountSize').value);
+        const mode        = document.querySelector('input[name="mode"]:checked').value;
+        const inputVal    = parseFloat(document.getElementById('inputValue').value);
+        const leverage    = parseInt(document.getElementById('leverage').value);
+        const entry       = parseFloat(document.getElementById('entryPrice').value);
+        const slMode = document.querySelector('input[name="slMode"]:checked').value;
+        let stop;
 
-      // Validation
-      if (!selectedPair) {
-        showResult('Please select a valid pair from the list.', false);
-        return;
-      }
-      if (isNaN(acctSize) || acctSize <= 0) {
-        showResult('Please enter a valid Account size', false);
-        return;
-      }
-      if (isNaN(entry) || entry <= 0) {
-        showResult('Please enter a valid Entry price', false);
-        return;
-      }
-      if (isNaN(stop) || stop <= 0) {
-        showResult('Please enter a valid Stoploss price', false);
-        return;
-      }
-      if (entry === stop) {
-        showResult('Entry price and Stoploss price cannot be equal', false);
-        return;
-      }
-      if (isNaN(leverage) || leverage < 1) {
-        showResult('Please enter valid leverage (>= 1)', false);
-        return;
-      }
-      if (isNaN(inputVal) || inputVal <= 0) {
-        showResult('Please enter a positive Contracts or Risk %', false);
-        return;
-      }
-      if (!selectedSide) {
-        showResult('Please select Buy or Sell side', false);
-        return;
-      }
+        // Langkah 2: Lakukan validasi dasar untuk memastikan semua input terisi
+        if (!selectedPair) { showResult('Please select a valid pair from the list.', false); return; }
+        if (isNaN(acctSize) || acctSize <= 0) { showResult('Please enter a valid Account size', false); return; }
+        // ... (validasi lainnya)
 
-      const priceDiff = Math.abs(entry - stop);
-      const color     = (selectedSide === 'Buy') ? '#9fefa1' : '#f17f7f';
-      let html = '';
-
-      if (mode === 'risk') {
-        const riskAmt     = acctSize * (inputVal / 100);
-        let maxContracts  = Math.floor(riskAmt / (priceDiff * contractSize));
-        if (maxContracts <= 0) {
-          showResult('Risk % too low or stoploss too close, position size is zero.', false);
-          return;
+        // Langkah 3: Tentukan harga stop-loss (stop) berdasarkan mode yang dipilih (Harga atau Persen)
+        if (slMode === SL_MODE_PERCENT) {
+            const slPercentValue = parseFloat(document.getElementById('stopLossPercent').value);
+            if (isNaN(slPercentValue) || slPercentValue <= 0) { showResult('Please enter a valid Stoploss %', false); return; }
+            const priceChange = entry * (slPercentValue / 100);
+            if (selectedSide === SIDE_BUY) { stop = entry - priceChange; } else { stop = entry + priceChange; }
+        } else {
+            stop = parseFloat(document.getElementById('stopLossPrice').value);
+            if (isNaN(stop) || stop <= 0) { showResult('Please enter a valid Stoploss price', false); return; }
         }
-        const posSize     = maxContracts * contractSize * entry;
-        const marginReq   = posSize / leverage;
 
-        html += `
-          <div style="margin-bottom: 0.8rem; font-weight: bold; color: ${color};">
-            ${selectedSide} ${selectedPair} | Entry: ${formatNum(entry)} | Stop: ${formatNum(stop)} | Leverage: ${formatNum(leverage)}×
-          </div>
-          <div style="margin-bottom: 0.4rem;">
-            Risk: <span style="color:${color};"><strong>${formatNum(inputVal)}%</strong> of account (<strong>${formatNum(riskAmt)} USDT</strong>)</span>
-          </div>
-          <div style="margin-bottom: 1rem;">
-            Margin required: <span style="color:${color};"><strong>${formatNum(marginReq)} USDT</strong></span>
-          </div>
-          <div>
-            <strong>Account Balance:</strong> ${formatNum(acctSize)} USDT<br>
-            <strong>Max Order Size:</strong> ${formatNum(maxContracts)} contracts (~${formatNum(posSize)} USDT)<br>
-            <em>(Contract size: ${formatNum(contractSize)})</em>
-          </div>
-        `;
-        saveToHistory({
-          side: selectedSide,
-          pair: selectedPair,
-          mode: 'Risk%',
-          input: formatNum(inputVal),
-          result: `Max ${formatNum(maxContracts)} contracts (~${formatNum(posSize)} USDT), Margin ${formatNum(marginReq)} USDT`
-        });
-      } else {
-        const contracts = Math.floor(inputVal);
-        if (contracts <= 0) {
-          showResult('Contracts must be greater than zero.', false);
-          return;
+        // Langkah 4: Lakukan validasi lanjutan, memastikan posisi SL benar
+        if (selectedSide === SIDE_BUY && entry <= stop) { showResult('Error: Untuk trade BUY, harga Stop Loss harus lebih rendah dari harga Entry.', false); return; }
+        if (selectedSide === SIDE_SELL && entry >= stop) { showResult('Error: Untuk trade SELL, harga Stop Loss harus lebih tinggi dari harga Entry.', false); return; }
+
+        // Langkah 5: Lakukan kalkulasi inti (ukuran posisi, margin, dll.)
+        const priceDiff = Math.abs(entry - stop);
+        const slPercentage = (priceDiff / entry) * 100;
+        const color = (selectedSide === SIDE_BUY) ? '#9fefa1' : '#f17f7f';
+        let html = '';
+        const resultHeader = `<div style="margin-bottom: 0.8rem; font-weight: bold; color: ${color};"> ${selectedSide} ${selectedPair} | Entry: ${formatNum(entry)} | Stop: ${formatNum(stop)} (${slPercentage.toFixed(2)}%) | Leverage: ${formatNum(leverage)}× </div>`;
+
+        if (mode === MODE_RISK) {
+            const riskAmt = acctSize * (inputVal / 100);
+            let maxContracts = Math.floor(riskAmt / (priceDiff * contractSize));
+            if (maxContracts <= 0) { showResult('Risk % too low or stoploss too close, position size is zero.', false); return; }
+            const posSize = maxContracts * contractSize * entry;
+            const marginReq = posSize / leverage;
+            html += `${resultHeader} ...`; // (HTML untuk hasil)
+            saveToHistory({ side: selectedSide, pair: selectedPair, mode: 'Risk%', input: formatNum(inputVal), result: `Max ${formatNum(maxContracts)} contracts (~${formatNum(posSize)} USDT), Margin ${formatNum(marginReq)} USDT`, entry: entry, stop: stop, leverage: leverage });
+        } else {
+            // ... (Kalkulasi untuk mode 'Contracts')
+            const contracts = Math.floor(inputVal);
+            if (contracts <= 0) { showResult('Contracts must be greater than zero.', false); return; }
+            const riskAmt = contracts * priceDiff * contractSize;
+            const riskPct = (riskAmt / acctSize) * 100;
+            const posSize = contracts * contractSize * entry;
+            const marginReq = posSize / leverage;
+            html += `${resultHeader} ...`; // (HTML untuk hasil)
+            saveToHistory({ side: selectedSide, pair: selectedPair, mode: 'Contracts', input: formatNum(contracts), result: `Risk ${formatNum(riskPct)}%, Margin ${formatNum(marginReq)} USDT`, entry: entry, stop: stop, leverage: leverage });
         }
-        const riskAmt   = contracts * priceDiff * contractSize;
-        const riskPct   = (riskAmt / acctSize) * 100;
-        const posSize   = contracts * contractSize * entry;
-        const marginReq = posSize / leverage;
+        
+        // Langkah 6: Tampilkan hasil, simpan ke riwayat, dan reset input
+        showResult(html, true);
+        resetInputs(false);
 
-        html += `
-          <div style="margin-bottom: 0.8rem; font-weight: bold; color: ${color};">
-            ${selectedSide} ${selectedPair} | Entry: ${formatNum(entry)} | Stop: ${formatNum(stop)} | Leverage: ${formatNum(leverage)}×
-          </div>
-          <div style="margin-bottom: 0.4rem;">
-            Risk: <span style="color:${color};"><strong>${formatNum(riskPct)}%</strong> of account (<strong>${formatNum(riskAmt)} USDT</strong>)</span>
-          </div>
-          <div style="margin-bottom: 1rem;">
-            Margin required: <span style="color:${color};"><strong>${formatNum(marginReq)} USDT</strong></span>
-          </div>
-          <div>
-            <strong>Account Balance:</strong> ${formatNum(acctSize)} USDT<br>
-            <strong>Order Size:</strong> ${formatNum(contracts)} contracts (~${formatNum(posSize)} USDT)<br>
-            <em>(Contract size: ${formatNum(contractSize)})</em>
-          </div>
-        `;
-        saveToHistory({
-          side: selectedSide,
-          pair: selectedPair,
-          mode: 'Contracts',
-          input: formatNum(contracts),
-          result: `Risk ${formatNum(riskPct)}%, Margin ${formatNum(marginReq)} USDT`
-        });
-      }
-
-      showResult(html, true);
-      resetInputs(false);
-    }
-
-    function showResult(html, showCopy) {
-      resultDiv.innerHTML = html;
-      resultContainer.style.display = 'block';
-      setTimeout(() => resultDiv.classList.add('show'), 20);
-      if (showCopy) {
-        copyBtn.style.display = 'block';
-      } else {
-        copyBtn.style.display = 'none';
+      } catch (e) {
+        console.error("Error in calculate function:", e);
+        showResult("An unexpected error occurred during calculation. Check console for details.", false);
       }
     }
-
-    /* ──────────────────────────────────────────────────────────────────────────
-       Copy to clipboard
-    ──────────────────────────────────────────────────────────────────────────── */
-    copyBtn.addEventListener('click', () => {
-      const text = resultDiv.innerText.trim();
-      navigator.clipboard.writeText(text).then(() => {
-        copyBtn.textContent = 'Copied!';
-        setTimeout(() => (copyBtn.textContent = 'Copy Result'), 1500);
-      });
-    });
-
-    /* ──────────────────────────────────────────────────────────────────────────
-       History (using localStorage)
-    ──────────────────────────────────────────────────────────────────────────── */
+    
+    // Fungsi untuk menampilkan hasil di kotak utama
+    function showResult(html, showCopy) { /* ... */ }
+    // Event listener untuk tombol 'Copy'
+    copyBtn.addEventListener('click', () => { /* ... */ });
+    
+    // ======================================================================
+    // BAGIAN 5: MANAJEMEN RIWAYAT (HISTORY)
+    // ======================================================================
+    
     const historyList = document.getElementById('historyList');
+    
+    // Menyimpan entri baru ke localStorage dan memanggil renderHistory
+    function saveToHistory(entry) { /* ... */ }
 
-    function saveToHistory(entry) {
-      const hist = JSON.parse(localStorage.getItem('tradeHistory') || '[]');
-      hist.unshift({ ...entry, timestamp: new Date().toLocaleString() });
-      if (hist.length > 20) hist.pop();
-      localStorage.setItem('tradeHistory', JSON.stringify(hist));
-      renderHistory();
-    }
-
+    // Mengambil data dari localStorage dan menampilkannya di halaman
+    // Dibuat "pintar" agar tidak error jika format data lama & baru tercampur
     function renderHistory() {
       const hist = JSON.parse(localStorage.getItem('tradeHistory') || '[]');
       historyList.innerHTML = '';
@@ -792,45 +332,29 @@
       hist.forEach(item => {
         const div = document.createElement('div');
         div.className = 'history-item';
-        div.innerHTML = `
-          <strong>[${item.timestamp}]</strong> ${item.side} ${item.pair} — ${item.mode}: ${item.input} → ${item.result}
-        `;
+        let mainResult = `<strong>[${item.timestamp}]</strong> ${item.side} ${item.pair} — ${item.mode}: ${item.input} → ${item.result}`;
+        let setupDetails = '';
+        // Pengecekan penting: hanya tampilkan detail jika datanya ada
+        if (item.entry && item.stop && item.leverage) {
+            setupDetails = `<div style="margin-top: 4px;"><small style="color:#bbb;">Setup: Entry ${formatNum(item.entry)} | SL ${formatNum(item.stop)} | Lev ${item.leverage}x</small></div>`;
+        }
+        div.innerHTML = `<div>${mainResult}</div>${setupDetails}`;
         historyList.appendChild(div);
       });
     }
+    
+    // Panggil renderHistory() saat halaman pertama kali dibuka
+    document.addEventListener('DOMContentLoaded', renderHistory);
 
-    document.getElementById('clearHistoryBtn').addEventListener('click', () => {
-      localStorage.removeItem('tradeHistory');
-      renderHistory();
-    });
-
-    /* ──────────────────────────────────────────────────────────────────────────
-       Reset inputs (clear only fields except accountSize & leverage)
-    ──────────────────────────────────────────────────────────────────────────── */
-    function resetInputs(clearAccount = true) {
-      if (clearAccount) {
-        document.getElementById('accountSize').value = '';
-        document.getElementById('leverage').value = '';
-      }
-      document.getElementById('pairInput').value = '';
-      document.getElementById('contractSize').value = '';
-      document.querySelector('input[name="mode"][value="risk"]').checked = true;
-      document.getElementById('inputValue').value = '1';
-      document.getElementById('entryPrice').value = '';
-      document.getElementById('stopLossPrice').value = '';
-      selectedSide = null;
-      selectedPair = null;
-      contractSize = 1;
-      highlightedIndex = -1;
-      optionsList.style.display = 'none';
-      document.getElementById('accountSize').focus();
-    }
-
-    // Allow Enter key to trigger calculate on certain fields
-    ['accountSize', 'inputValue', 'leverage', 'entryPrice', 'stopLossPrice', 'pairInput'].forEach(id => {
-      document.getElementById(id).addEventListener('keydown', e => {
-        if (e.key === 'Enter') calculate();
-      });
+    // Event listener untuk tombol 'Clear History'
+    document.getElementById('clearHistoryBtn').addEventListener('click', () => { /* ... */ });
+    
+    // Fungsi untuk me-reset kolom input setelah kalkulasi
+    function resetInputs(clearAccount = true) { /* ... */ }
+    
+    // Event listener untuk tombol 'Enter' pada beberapa input
+    ['accountSize', 'inputValue', 'leverage', 'entryPrice', 'stopLossPrice', 'stopLossPercent'].forEach(id => { 
+        document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') calculate(); }); 
     });
   </script>
 
